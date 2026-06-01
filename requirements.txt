@@ -1,0 +1,9 @@
+matplotlib
+scipy
+numba
+numpy
+pystac_client
+planetary_computer
+shapely
+ipywidgets
+rioxarray
