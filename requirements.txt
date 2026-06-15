@@ -7,3 +7,16 @@ planetary_computer
 shapely
 ipywidgets
 rioxarray
+jupyter
+seaborn
+ipykernel
+ipympl
+ipyleaflet
+pandas
+tqdm
+netCDF4
+pcse
+git+https://github.com/jgomezdans/GomezEngine.git
+git+https://github.com/jgomezdans/gp_emulator.git
+prosail
+geopandas
