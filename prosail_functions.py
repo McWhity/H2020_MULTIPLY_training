@@ -74,36 +74,17 @@ def call_prospect_d(n, cab, car, cbrown, cw, cm, ant):
     ti = np.interp(x, x[tpass], t[tpass])
     return np.c_[ri, ti]
 
-
 def prospect_sensitivity_ssa(
-    leaf_n, leaf_cab, leaf_car, leaf_cbrown, leaf_cw, leaf_cm
+    leaf_n, leaf_cab, leaf_car, leaf_cbrown, leaf_cw, leaf_cm,
+    axs, ax2, ax3, fig1, fig2, fig3
 ):
-    """Local approximation (around ``x0``) of the sensitivity of the PROSPECT
-    model to each input parameter. YOu can set up the point around which the
-    sensitivity is calculated (``x0``), the value of the finite difference
-    (``epsilon``).
-
-    Parameters
-    -------------
-    x0: array
-        A size 6 array, with the centre point around which the partial derivatives
-        will be calculated. The different elements are in PROSPECT order, e.g.
-        N, Cab, Car, Cbrown, Cw and Cm
-    epsilon: float
-        The finite difference amount. If you get NaN, make it a bit larger.
-    do_plots: bool
-        Whether to do some pretty plots
-
-    Returns
-    ----------
-
-    """
-
+    """Calculates PROSPECT model sensitivities and updates the existing dashboard figures directly."""
     epsilon = 1e-5
-    do_plots = True
     x0 = np.array([leaf_n, leaf_cab, leaf_car, leaf_cbrown, leaf_cw, leaf_cm])
     sensitivity = np.zeros((7, 2101))
     span = np.array([1.5, 80.0, 20.0, 1.0, 0.0439 - 0.0043, 0.0152 - 0.0017])
+    
+    # Run the core scientific model
     rr = call_prospect_5(*x0)
     r0 = rr.sum(axis=1)
     for i in range(6):
@@ -112,66 +93,114 @@ def prospect_sensitivity_ssa(
         r1 = call_prospect_5(*xp).sum(axis=1)
         sensitivity[i, :] = (r0 - r1) / epsilon
 
-    if do_plots:
-        wv = np.arange(400, 2501)
-        fig1, axs = plt.subplots(
-            figsize=(6.5, 6.5), nrows=2, ncols=3, sharex=True, sharey=True
-        )
-        axs = axs.flatten()
-        for i, input_parameter in enumerate(
-            ["n", "cab", "car", "cbrown", "cw", "cm"]
-        ):
-            axs[i].plot(wv, sensitivity[i, :], "-", lw=2)
-            axs[i].set_title(input_parameter)
-            axs[i].set_xlim(400, 2500)
-            if i in [0, 3]:
-                axs[i].set_ylabel(r"$\partial f/\partial \mathbf{x}$")
-            if i > 2:
-                axs[i].set_xlabel("Wavelength [nm]")
-        fig1.tight_layout()
-        fig2 = plt.figure(figsize=(6.47, 4))
-        ax = plt.gca()
-        for i, input_parameter in enumerate(
-            ["n", "cab", "car", "cbrown", "cw", "cm"]
-        ):
-            ax.plot(wv, sensitivity[i, :], lw=2, label=input_parameter)
+    wv = np.arange(400, 2501)
 
-        ax.set_xlim(400, 2500)
-        ax.set_ylabel(r"$\partial f/\partial \mathbf{x}$")
-        ax.set_xlabel("Wavelength [nm]")
-        ax.legend(loc="best", frameon=False, fontsize=10)
-        fig2.tight_layout()
-        fig3 = plt.figure(figsize=(6.47, 4))
-        ax = plt.gca()
-        ax.plot(wv, rr[:, 0], lw=2, label="Leaf Reflectance")
-        ax.plot(wv, rr[:, 1], lw=2, label="Leaf Transmittance")
-        ax.plot(wv, rr.sum(axis=1), lw=2, label=r"Leaf $\omega$")
+    # ---------------------------------------------------------
+    # UPDATE FIGURE 1 (Subplots grid)
+    # ---------------------------------------------------------
+    for i, input_parameter in enumerate(["n", "cab", "car", "cbrown", "cw", "cm"]):
+        axs[i].clear()  # Wipe out old lines cleanly
+        axs[i].plot(wv, sensitivity[i, :], "-", lw=2)
+        axs[i].set_title(input_parameter)
+        axs[i].set_xlim(400, 2500)
+        if i in [0, 3]:
+            axs[i].set_ylabel(r"$\partial f/\partial \mathbf{x}$")
+        if i > 2:
+            axs[i].set_xlabel("Wavelength [nm]")
+    fig1.tight_layout()
 
-        ax.set_xlim(400, 2500)
-        ax.set_ylabel(r"$\rho,\;\tau\;\omega$")
-        ax.set_xlabel("Wavelength [nm]")
-        ax.legend(loc="best", frameon=False, fontsize=10)
-        display(
-            widgets.TwoByTwoLayout(
-                top_left=fig1.canvas,
-                top_right=fig2.canvas,
-                bottom_right=fig3.canvas,
-            )
-        )
+    # ---------------------------------------------------------
+    # UPDATE FIGURE 2 (Combined sensitivities)
+    # ---------------------------------------------------------
+    ax2.clear()  # Wipe out old lines cleanly
+    for i, input_parameter in enumerate(["n", "cab", "car", "cbrown", "cw", "cm"]):
+        ax2.plot(wv, sensitivity[i, :], lw=2, label=input_parameter)
+    ax2.set_xlim(400, 2500)
+    ax2.set_ylabel(r"$\partial f/\partial \mathbf{x}$")
+    ax2.set_xlabel("Wavelength [nm]")
+    ax2.legend(loc="best", frameon=False, fontsize=10)
+    fig2.tight_layout()
+
+    # ---------------------------------------------------------
+    # UPDATE FIGURE 3 (Reflectance, Transmittance, Omega)
+    # ---------------------------------------------------------
+    ax3.clear()  # Wipe out old lines cleanly
+    ax3.plot(wv, rr[:, 0], lw=2, label="Leaf Reflectance")
+    ax3.plot(wv, rr[:, 1], lw=2, label="Leaf Transmittance")
+    ax3.plot(wv, rr.sum(axis=1), lw=2, label=r"Leaf $\omega$")
+    ax3.set_xlim(400, 2500)
+    ax3.set_ylabel(r"$\rho,\;\tau\;\omega$")
+    ax3.set_xlabel("Wavelength [nm]")
+    ax3.legend(loc="best", frameon=False, fontsize=10)
+    fig3.tight_layout()
+
+    # Flush the new data layers instantly directly to the active canvas interfaces
+    fig1.canvas.draw_idle()
+    fig2.canvas.draw_idle()
+    fig3.canvas.draw_idle()
 
 
 def sensitivity_prospect():
-    epsilon = 1e-5
+    # 1. Turn off Matplotlib's automatic global notebook output tracker
+    plt.ioff()
 
-    _ = widgets.interact_manual(
-        prospect_sensitivity_ssa,
-        leaf_n=widgets.FloatSlider(min=1, max=3, value=1.8),
-        leaf_cab=widgets.FloatSlider(min=0, max=100, value=40.0),
-        leaf_car=widgets.FloatSlider(min=0, max=25, value=10.0),
-        leaf_cbrown=widgets.FloatSlider(min=0, max=1, value=0.1),
-        leaf_cw=widgets.FloatLogSlider(min=-3, max=-1.0, value=0.0133),
-        leaf_cm=widgets.FloatLogSlider(min=-3, max=-1.0, value=0.0053),
+    # 2. Allocate the persistent figures and axes EXACTLY ONCE globally
+    fig1, axs = plt.subplots(figsize=(6.5, 6.5), nrows=2, ncols=3, sharex=True, sharey=True)
+    axs = axs.flatten()
+
+    fig2 = plt.figure(figsize=(6.47, 4))
+    ax2 = plt.gca()
+
+    fig3 = plt.figure(figsize=(6.47, 4))
+    ax3 = plt.gca()
+
+    # 3. Assemble the structural Dashboard Layout frame immediately
+    dashboard_layout = widgets.TwoByTwoLayout(
+        top_left=fig1.canvas,
+        top_right=fig2.canvas,
+        bottom_right=fig3.canvas,
     )
+
+    # 4. Generate the manual interface controls
+    slider_n = widgets.FloatSlider(min=1, max=3, value=1.8, description='N')
+    slider_cab = widgets.FloatSlider(min=0, max=100, value=40.0, description='Cab')
+    slider_car = widgets.FloatSlider(min=0, max=25, value=10.0, description='Car')
+    slider_cbrown = widgets.FloatSlider(min=0, max=1, value=0.1, description='Cbrown')
+    slider_cw = widgets.FloatLogSlider(min=-3, max=-1.0, value=0.0133, description='Cw')
+    slider_cm = widgets.FloatLogSlider(min=-3, max=-1.0, value=0.0053, description='Cm')
+
+    run_button = widgets.Button(
+        description="Run Interact", 
+        button_style='primary',
+        layout=widgets.Layout(margin='10px 0px')
+    )
+
+    # 5. Define the isolated interaction behavior when clicked
+    def trigger_calculation(b):
+        prospect_sensitivity_ssa(
+            leaf_n=slider_n.value,
+            leaf_cab=slider_cab.value,
+            leaf_car=slider_car.value,
+            leaf_cbrown=slider_cbrown.value,
+            leaf_cw=slider_cw.value,
+            leaf_cm=slider_cm.value,
+            axs=axs, ax2=ax2, ax3=ax3,
+            fig1=fig1, fig2=fig2, fig3=fig3
+        )
+
+    run_button.on_click(trigger_calculation)
+
+    # 6. Group the interface tools into a solid vertical layout panel
+    control_panel = widgets.VBox([
+        slider_n, slider_cab, slider_car, slider_cbrown, slider_cw, slider_cm,
+        run_button
+    ])
+
+    # 7. Render the controls and the un-collapsable dashboard frame together
+    display(widgets.VBox([control_panel, dashboard_layout]))
+    
+    # Generate the baseline data lines on first startup
+    trigger_calculation(None)
 
 
 def prospect_sensitivity_n(
@@ -267,6 +296,75 @@ def veg_index_playground():
         ),
         do_plots=widgets.fixed(True),
     )
+
+
+# def veg_index_playground():
+#     # 1. Turn off interactive mode so plots append cleanly
+#     plt.ioff()
+#     np.seterr(divide="ignore", invalid="ignore")
+       
+#     # 3. Sliders and Dropdowns
+#     dropdown_mode = widgets.Dropdown(options=["ssa", "refl", "trans"], value="ssa", description="Mode")
+#     dropdown_sweep = widgets.Dropdown(options=["n", "cab", "car", "cbrown", "cw", "cm"], value="cw", description="Sweep Param")
+    
+#     slider_band1 = widgets.IntSlider(min=400, max=2500, value=1610, description="Band 1")
+#     slider_band2 = widgets.IntSlider(min=400, max=2500, value=865, description="Band 2")
+#     slider_width1 = widgets.IntSlider(min=1, max=100, value=5, description="Bwidth 1")
+#     slider_width2 = widgets.IntSlider(min=1, max=100, value=5, description="Bwidth 2")
+    
+#     # Behind-the-scenes configuration mapping
+#     fixed_params = {
+#         'n_samples': 50,
+#         'spaces': 25,
+#         'minvals': {"n": 0, "cab": 0, "car": 0, "cbrown": 0, "cw": 0.0, "cm": 0.0},
+#         'maxvals': {"n": 3.5, "cab": 80, "car": 200, "cbrown": 1, "cw": 0.4, "cm": 0.5},
+#         'do_plots': True
+#     }
+    
+#     # 4. History container to append plots sequentially
+#     history_container = widgets.Output()
+    
+#     # 5. Interactive Action Button
+#     run_button = widgets.Button(
+#         description="Run Interact",
+#         button_style='primary',
+#         layout=widgets.Layout(margin='10px 0px')
+#     )
+    
+#     # 6. Button calculation wrapper
+#     def on_button_clicked(b):
+#         with history_container:
+#             # Call your underlying index calculator using active inputs
+#             do_index(
+#                 mode=dropdown_mode.value,
+#                 sweep_param=dropdown_sweep.value,
+#                 band1=slider_band1.value,
+#                 band2=slider_band2.value,
+#                 bwidth1=slider_width1.value,
+#                 bwidth2=slider_width2.value,
+#                 **fixed_params
+#             )
+            
+#             # Explicitly capture and draw any active figure streams
+#             if plt.get_fignums():
+#                 current_fig = plt.gcf()
+#                 display(current_fig)
+#                 plt.close(current_fig)
+
+#     run_button.on_click(on_button_clicked)
+    
+#     # 7. Stack your components layout (Fixed values show right at the top)
+#     control_panel = widgets.VBox([
+#         widgets.HTML("<hr>"), # Add a visual divider line
+#         dropdown_mode, dropdown_sweep,
+#         slider_band1, slider_band2,
+#         slider_width1, slider_width2,
+#         run_button
+#     ])
+    
+#     # 8. Render user interface
+#     display(widgets.VBox([control_panel, history_container]))
+
 
 
 def do_index(
