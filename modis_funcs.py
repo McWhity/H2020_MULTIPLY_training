@@ -7,7 +7,8 @@ import datetime as dt
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import gdal
+#import gdal
+from osgeo import gdal
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
