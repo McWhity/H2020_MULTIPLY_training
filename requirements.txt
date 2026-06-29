@@ -1,7 +1,7 @@
 matplotlib
 scipy
-numba
 numpy
+numba
 pystac_client
 planetary_computer
 shapely
@@ -20,3 +20,7 @@ git+https://github.com/jgomezdans/GomezEngine.git
 git+https://github.com/jgomezdans/gp_emulator.git
 prosail
 geopandas
+geogif
+stackstac
+boto3
+odc-stac
