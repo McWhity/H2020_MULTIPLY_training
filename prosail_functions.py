@@ -6,6 +6,11 @@ from scipy.optimize import curve_fit
 import scipy.optimize as opt
 import ipywidgets as widgets
 from IPython.display import display
+import ipywidgets as widgets
+from ipywidgets import interact_manual
+from IPython.display import clear_output
+import contextlib
+import sys
 
 
 try:
@@ -843,110 +848,199 @@ def call_prosail(
     return ri
 
 
-def prosail_sensitvitiy_gui():
+    
+
+
+def prosail_sensitivity_gui():
     parameters = [
-        "n",
-        "cab",
-        "car",
-        "ant",
-        "cbrown",
-        "cw",
-        "cm",
-        "lai",
-        "lidf",
-        "rsoil",
-        "psoil",
-        "hspot",
+        "n", "cab", "car", "ant", "cbrown", "cw", "cm", 
+        "lai", "lidf", "rsoil", "psoil", "hspot",
     ]
     minvals = {
-        "n": 1.0,
-        "cab": 15.0,
-        "car": 10.0,
-        "ant": 0.0,
-        "cbrown": 0.0,
-        "cw": 0.001,
-        "cm": 0.0,
-        "lai": 0.5,
-        "lidf": 0.0,
-        "rsoil": 0.0,
-        "psoil": 0.0,
-        "hspot": 0.0001,
+        "n": 1.0, "cab": 15.0, "car": 10.0, "ant": 0.0, "cbrown": 0.0,
+        "cw": 0.001, "cm": 0.0, "lai": 0.5, "lidf": 0.0, "rsoil": 0.0,
+        "psoil": 0.0, "hspot": 0.0001,
     }
-
     maxvals = {
-        "n": 2.5,
-        "cab": 80.0,
-        "car": 20.0,
-        "ant": 40,
-        "cbrown": 1.0,
-        "cw": 0.04,
-        "cm": 0.5,
-        "lai": 8.05,
-        "lidf": 90.0,
-        "rsoil": 2.0,
-        "psoil": 2.0,
-        "hspot": 0.5,
+        "n": 2.5, "cab": 80.0, "car": 20.0, "ant": 40, "cbrown": 1.0,
+        "cw": 0.04, "cm": 0.5, "lai": 8.05, "lidf": 90.0, "rsoil": 2.0,
+        "psoil": 2.0, "hspot": 0.5,
     }
-
     vals = {
-        "n": 2.1,
-        "cab": 30.0,
-        "car": 16.0,
-        "ant": 8,
-        "cbrown": 0.0,
-        "cw": 0.013,
-        "cm": 0.0053,
-        "lai": 3,
-        "lidf": 45.0,
-        "rsoil": 1.0,
-        "psoil": 1.0,
-        "hspot": 0.01,
+        "n": 2.1, "cab": 30.0, "car": 16.0, "ant": 8, "cbrown": 0.0,
+        "cw": 0.013, "cm": 0.0053, "lai": 3, "lidf": 45.0, "rsoil": 1.0,
+        "psoil": 1.0, "hspot": 0.01,
     }
+    
+    # FIXED: Added explicit step=0.0001 to prevent ipywidgets from clamping small numbers to 0
     leaf_w = {
-        k: widgets.FloatSlider(
-            min=minvals[k], max=maxvals[k], value=vals[k], description=k
-        )
+        k: widgets.FloatSlider(min=minvals[k], max=maxvals[k], value=vals[k], step=0.0001, description=k) 
         for k in parameters[:6]
     }
-
     canopy_w = {
-        k: widgets.FloatSlider(
-            min=minvals[k], max=maxvals[k], value=vals[k], description=k
-        )
+        k: widgets.FloatSlider(min=minvals[k], max=maxvals[k], value=vals[k], step=0.0001, description=k) 
         for k in parameters[6:]
     }
     acq_w = {
-        "sza": widgets.FloatSlider(min=0, max=90, value=0, description="SZA"),
-        "vza": widgets.FloatSlider(
-            min=0, max=90, value=30, description="VZA"
-        ),
-        "raa": widgets.FloatSlider(
-            min=0, max=180, value=0, description="RAA"
-        ),
+        "sza": widgets.FloatSlider(min=0, max=90, value=0, step=0.1, description="SZA"),
+        "vza": widgets.FloatSlider(min=0, max=90, value=30, step=0.1, description="VZA"),
+        "raa": widgets.FloatSlider(min=0, max=180, value=0, step=0.1, description="RAA"),
     }
+    
     r1 = list(leaf_w.values())
     r2 = list(canopy_w.values())
     r3 = list(acq_w.values())
 
-    leaf_w.update(canopy_w)
-    leaf_w.update(acq_w)
+    gui_layout = widgets.VBox([
+        widgets.HBox(r1[:3]),
+        widgets.HBox(r1[3:]),
+        widgets.HBox(r2[:3]),
+        widgets.HBox(r2[3:]),
+        widgets.HBox(r3),
+    ])
 
-    gui = widgets.VBox(
-        [
-            widgets.HBox(r1[:3]),
-            widgets.HBox(r1[3:]),
-            widgets.HBox(r2[:3]),
-            widgets.HBox(r2[3:]),
-            widgets.HBox(r3),
-        ]
-    )
+    run_button = widgets.Button(description="Run Interact", button_style='primary')
+    interact_out = widgets.Output()
 
-    def on_toggle(**values):
-        xx = [v for k, v in values.items()]
-        prosail_sensitivity(*xx, epsilon=1e-5, do_plots=True)
+    def on_button_click(b):
+        plt.close('all')
+        clear_output(wait=True)
+        display(widgets.VBox([gui_layout, run_button, interact_out]))
+        
+        with interact_out:
+            interact_out.clear_output(wait=True)
+            
+            # Reconstruct the list in the exact positional order expected by the repository
+            xx = [
+                leaf_w["n"].value,
+                leaf_w["cab"].value,
+                leaf_w["car"].value,
+                leaf_w["ant"].value,
+                leaf_w["cbrown"].value,
+                leaf_w["cw"].value,
+                canopy_w["cm"].value,
+                canopy_w["lai"].value,
+                canopy_w["lidf"].value,
+                canopy_w["rsoil"].value,
+                canopy_w["psoil"].value,
+                canopy_w["hspot"].value,
+                acq_w["sza"].value,
+                acq_w["vza"].value,
+                acq_w["raa"].value
+            ]
+            
+            with contextlib.redirect_stdout(sys.stdout):
+                prosail_sensitivity(*xx, epsilon=1e-5, do_plots=True)
 
-    interact_out = widgets.interactive_output(on_toggle, leaf_w)
-    display(gui, interact_out)
+    run_button.on_click(on_button_click)
+    display(widgets.VBox([gui_layout, run_button, interact_out]))
+
+
+
+# def prosail_sensitvitiy_gui():
+#     parameters = [
+#         "n",
+#         "cab",
+#         "car",
+#         "ant",
+#         "cbrown",
+#         "cw",
+#         "cm",
+#         "lai",
+#         "lidf",
+#         "rsoil",
+#         "psoil",
+#         "hspot",
+#     ]
+#     minvals = {
+#         "n": 1.0,
+#         "cab": 15.0,
+#         "car": 10.0,
+#         "ant": 0.0,
+#         "cbrown": 0.0,
+#         "cw": 0.001,
+#         "cm": 0.0,
+#         "lai": 0.5,
+#         "lidf": 0.0,
+#         "rsoil": 0.0,
+#         "psoil": 0.0,
+#         "hspot": 0.0001,
+#     }
+
+#     maxvals = {
+#         "n": 2.5,
+#         "cab": 80.0,
+#         "car": 20.0,
+#         "ant": 40,
+#         "cbrown": 1.0,
+#         "cw": 0.04,
+#         "cm": 0.5,
+#         "lai": 8.05,
+#         "lidf": 90.0,
+#         "rsoil": 2.0,
+#         "psoil": 2.0,
+#         "hspot": 0.5,
+#     }
+
+#     vals = {
+#         "n": 2.1,
+#         "cab": 30.0,
+#         "car": 16.0,
+#         "ant": 8,
+#         "cbrown": 0.0,
+#         "cw": 0.013,
+#         "cm": 0.0053,
+#         "lai": 3,
+#         "lidf": 45.0,
+#         "rsoil": 1.0,
+#         "psoil": 1.0,
+#         "hspot": 0.01,
+#     }
+#     leaf_w = {
+#         k: widgets.FloatSlider(
+#             min=minvals[k], max=maxvals[k], value=vals[k], description=k
+#         )
+#         for k in parameters[:6]
+#     }
+
+#     canopy_w = {
+#         k: widgets.FloatSlider(
+#             min=minvals[k], max=maxvals[k], value=vals[k], description=k
+#         )
+#         for k in parameters[6:]
+#     }
+#     acq_w = {
+#         "sza": widgets.FloatSlider(min=0, max=90, value=0, description="SZA"),
+#         "vza": widgets.FloatSlider(
+#             min=0, max=90, value=30, description="VZA"
+#         ),
+#         "raa": widgets.FloatSlider(
+#             min=0, max=180, value=0, description="RAA"
+#         ),
+#     }
+#     r1 = list(leaf_w.values())
+#     r2 = list(canopy_w.values())
+#     r3 = list(acq_w.values())
+
+#     leaf_w.update(canopy_w)
+#     leaf_w.update(acq_w)
+
+#     gui = widgets.VBox(
+#         [
+#             widgets.HBox(r1[:3]),
+#             widgets.HBox(r1[3:]),
+#             widgets.HBox(r2[:3]),
+#             widgets.HBox(r2[3:]),
+#             widgets.HBox(r3),
+#         ]
+#     )
+
+#     def on_toggle(**values):
+#         xx = [v for k, v in values.items()]
+#         prosail_sensitivity(*xx, epsilon=1e-5, do_plots=True)
+
+#     interact_out = widgets.interactive_output(on_toggle, leaf_w)
+#     display(gui, interact_out)
 
 
 def prosail_sensitivity(
@@ -1686,3 +1780,43 @@ def canopy_vi_expt(
         p = param_names.index(nuisance[0])
         plot_vi_space(x[:, p], red, nir, vin)
     return x, red, nir
+
+
+
+def angular_gui():
+    # 1. Create the precision sliders
+    h_slider = widgets.FloatLogSlider(min=-3, max=0, value=0.1, description='h')
+    theta_slider = widgets.FloatSlider(min=0, max=70, value=30., description='theta')
+
+    gui_layout = widgets.VBox([h_slider, theta_slider])
+
+    # 2. Build explicit manual execution controls
+    run_button = widgets.Button(description="Run Interact", button_style='primary')
+    interact_out = widgets.Output()
+
+    def on_button_click(b):
+        # Wipe out background canvas memory trees
+        plt.close('all')
+        
+        # Hard-wipe the entire Jupyter cell viewport layout to erase old lines completely
+        clear_output(wait=True)
+        
+        # Re-display the sliders and button interface instantly
+        display(widgets.VBox([gui_layout, run_button, interact_out]))
+        
+        with interact_out:
+            interact_out.clear_output(wait=True)
+            
+            # Pull values out directly on click action
+            h_val = h_slider.value
+            theta_val = theta_slider.value
+            
+            # 3. Call the original function safely inside a redirected stream handler
+            with contextlib.redirect_stdout(sys.stdout):
+                hspot(h=h_val, theta=theta_val)
+
+    # Bind the click callback to the action button
+    run_button.on_click(on_button_click)
+
+    # Display everything cleanly on cell execution
+    display(widgets.VBox([gui_layout, run_button, interact_out]))
