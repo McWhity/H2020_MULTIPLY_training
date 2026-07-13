@@ -16,7 +16,8 @@ from pcse.fileinput import (
     CABOWeatherDataProvider,
 )
 from pcse.fileinput import YAMLCropDataProvider, YAMLAgroManagementReader
-from pcse.util import WOFOST71SiteDataProvider
+# from pcse.util import WOFOST71SiteDataProvider
+from pcse.input import WOFOST73SiteDataProvider as WOFOST71SiteDataProvider
 from pcse.base import ParameterProvider
 from pcse.models import Wofost71_WLP_FD, Wofost71_PP
 
@@ -262,6 +263,7 @@ def run_ensemble(
     assim_sm=True,
     ens_param_inflation=1.0,
 ):
+    plt.close("all")
     start_date, end_date = obs_period
     sd = start_date.strftime("%d%b")
     ed = end_date.strftime("%d%b")
@@ -365,6 +367,7 @@ def run_ensemble(
     axs[9].set_xlabel("Time [d]")
     fig.savefig(f"{fname_out_str}.pdf", dpi=300, bbox_inches="tight")
     # return results, observations
+    plt.show()
 
 
 def run_enkf_widget():
@@ -379,6 +382,7 @@ def run_enkf_widget():
         options=options,
         index=index,
         description="Observation period",
+        style={"description_width": "initial"},
         orientation="horizontal",
         layout={"width": "600px"},
     )
@@ -390,12 +394,14 @@ def run_enkf_widget():
             max=1000,
             value=50,
             description="Number of ensemble members",
+            style={"description_width": "initial"},
         ),
         ens_param_inflation=widgets.FloatSlider(
             min=0.1,
             max=5,
             value=1.0,
             description="Increase the ensemble dispersion/unc",
+            style={"description_width": "initial"},
         ),
         obs_period=integration_slider,
         sigma_lai=widgets.FloatSlider(
@@ -403,18 +409,21 @@ def run_enkf_widget():
             max=0.5,
             value=0.1,
             description="Relative Uncertainty in LAI",
+            style={"description_width": "initial"},
         ),
         sigma_sm=widgets.FloatSlider(
             min=0.01,
             max=0.5,
             value=0.25,
             description="Relative Uncertainty in SM",
+            style={"description_width": "initial"},
         ),
         n_obs=widgets.IntSlider(
             min=1,
             max=30,
             value=10,
             description="Number of observations to assimilate",
+            style={"description_width": "initial"},
         ),
         assim_lai=widgets.Checkbox(
             value=False, help="Assimilate LAI observations"
@@ -423,3 +432,4 @@ def run_enkf_widget():
             value=False, help="Assimilate soil moisture observations"
         ),
     )
+

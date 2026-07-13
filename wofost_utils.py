@@ -16,7 +16,8 @@ from pcse.fileinput import (
     CABOWeatherDataProvider,
 )
 from pcse.fileinput import YAMLCropDataProvider, YAMLAgroManagementReader
-from pcse.util import WOFOST71SiteDataProvider
+# from pcse.util import WOFOST71SiteDataProvider
+from pcse.input import NASAPowerWeatherDataProvider, WOFOST73SiteDataProvider as WOFOST71SiteDataProvider
 from pcse.base import ParameterProvider
 from pcse.models import Wofost71_WLP_FD, Wofost71_PP
 
@@ -39,6 +40,7 @@ regions = [
     "Upper_West",
     "Volta",
     "Western",
+    "MNI",
 ]
 agromanagement_contents = """
 Version: 1.0
@@ -134,6 +136,8 @@ def run_wofost(parameters, agromanagement, wdp, potential=False):
 def change_sowing_date(
     start_sowing, end_sowing, meteo, crop, variety, soil, mgmt, n_days=10
 ):
+    plt.clf() 
+    plt.close('all')
     fig, axs = plt.subplots(
         nrows=5, ncols=2, sharex=True, squeeze=True, figsize=(16, 16)
     )
@@ -164,6 +168,7 @@ def change_sowing_date(
     plt.xlim(start_sowing, None)
     axs[8].set_xlabel("Time [d]")
     axs[9].set_xlabel("Time [d]")
+    plt.show()
 
 
 def change_sowing_slider():
@@ -188,7 +193,7 @@ def change_sowing_slider():
         variety=fixed("Maize_VanHeemst_1988"),
         soil=fixed("ec4.new"),
         mgmt=fixed("ghana_maize.amgt"),
-    )
+   )
 
 
 def wofost_parameter_sweep_func(
@@ -211,6 +216,8 @@ def wofost_parameter_sweep_func(
     rdmsol=100.0,
     potential=False,
 ):
+    plt.clf() 
+    plt.close('all')
     cropdata = YAMLCropDataProvider()
     cropdata.set_active_crop(crop, variety)
     soildata = CABOFileReader(soil)
@@ -237,6 +244,7 @@ def wofost_parameter_sweep_func(
     agromanagement = YAMLAgroManagementReader("temporal.amgt")
 
     wdp = CABOWeatherDataProvider(meteo, fpath=f"./data/meteo/{meteo}/")
+    
     df_results, simulator = run_wofost(
         parameters, agromanagement, wdp, potential=potential
     )
@@ -252,6 +260,8 @@ def wofost_parameter_sweep_func(
     plt.gca().fmt_xdata = matplotlib.dates.DateFormatter("%Y-%m-%d")
     axs[8].set_xlabel("Time [d]")
     axs[9].set_xlabel("Time [d]")
+    
+    plt.show()
 
     key = (
         f"span_{span}-tdwi_{tdwi}-tsum1_{tsum1}-tsum2_{tsum2}-tsumem_{tsumem}"
@@ -288,5 +298,119 @@ def wofost_parameter_sweep():
         rdmsol=widgets.fixed(100.0),
         potential=widgets.Checkbox(
             value=False, description="Potential mode", icon="check"
+        ),
+    )
+
+
+def wofost_parameter_sweep_func2(
+    crop_start_date=dt.date(2011, 7, 1),
+    crop_end_date=dt.date(2011, 11, 1),
+    span=40.0,
+    tdwi=20.0,
+    tsum1=750.0,
+    tsum2=859.0,
+    tsumem=70,
+    rgrlai=0.05,
+    cvo=0.05,
+    cvl=0.05,
+    #meteo="Upper_East",
+    crop="maize",
+    variety="Maize_VanHeemst_1988",
+    soil="ec4.new",
+    wav=100,
+    co2=400,
+    rdmsol=100.0,
+    potential=False,
+    wdp=None,
+):
+    plt.clf() 
+    plt.close('all')
+    cropdata = YAMLCropDataProvider()
+    cropdata.set_active_crop(crop, variety)
+    soildata = CABOFileReader(soil)
+    soildata["RDMSOL"] = rdmsol
+    sitedata = WOFOST71SiteDataProvider(WAV=wav, CO2=co2)
+    parameters = ParameterProvider(
+        cropdata=cropdata, soildata=soildata, sitedata=sitedata
+    )
+    for p, v in zip(
+        ["SPAN", "TSUM1", "TSUM2", "TSUMEM", "TDWI", "RGRLAI", "CVO", "CVL"],
+        [span, tsum1, tsum2, tsumem, tdwi, rgrlai, cvo, cvl],
+    ):
+        parameters.set_override(p, v, check=True)
+    with open("temporal.amgt", "w") as fp:
+        fp.write(
+            agromanagement_contents.format(
+                year=crop_start_date.year,
+                crop=crop,
+                variety=variety,
+                crop_start_date=crop_start_date,
+                crop_end_date=crop_end_date,
+            )
+        )
+    agromanagement = YAMLAgroManagementReader("temporal.amgt")
+    
+    df_results, simulator = run_wofost(
+        parameters, agromanagement, wdp, potential=potential
+    )
+    fig, axs = plt.subplots(
+        nrows=5, ncols=2, sharex=True, squeeze=True, figsize=(16, 16)
+    )
+    axs = axs.flatten()
+    for j, p in enumerate(WOFOST_PARAMETERS):
+        axs[j].plot_date(df_results.index, df_results[p], "-")
+        axs[j].set_ylabel(WOFOST_LABELS[p], fontsize=8)
+
+    plt.gcf().autofmt_xdate()
+    plt.gca().fmt_xdata = matplotlib.dates.DateFormatter("%Y-%m-%d")
+    axs[8].set_xlabel("Time [d]")
+    axs[9].set_xlabel("Time [d]")
+
+    start_str = crop_start_date.strftime("%Y%m%d")
+    end_str = crop_end_date.strftime("%Y%m%d")
+    
+    soil_clean = Path(soil).stem
+
+    key = f"crop_{crop}-{variety}_soil_{soil_clean}_dates_{start_str}_to_{end_str}"
+    key += f"-span_{span}-tdwi_{tdwi}-tsum1_{tsum1}-tsum2_{tsum2}-tsumem_{tsumem}"
+    key += f"-rgrlai_{rgrlai}-wav_{wav}-cvo_{cvo}-cvl_{cvl}"
+
+    if potential:
+        key += "-POT.csv"
+    else:
+        key += "-LIM.csv"
+        
+    print(f"Saving run configurations to output: {key}")
+    df_results.to_csv(key, encoding="utf-8", index=False)
+    plt.show()
+
+
+def wofost_parameter_sweep2(soil, crop, crop_variety, meteo_data):
+    # Determine a safe default variety based on the crop chosen
+
+    widgets.interact_manual(
+        wofost_parameter_sweep_func2,
+
+        crop_start_date=widgets.DatePicker(value=dt.date(2017, 3, 1), description="Start Date"),
+        crop_end_date=widgets.DatePicker(value=dt.date(2017, 8, 1), description="End Date"),
+        span=widgets.FloatSlider(value=40.0, min=20, max=50),
+        cvo=widgets.FloatSlider(value=0.72, min=0.1, max=0.9, step=0.02),
+        cvl=widgets.FloatSlider(value=0.72, min=0.1, max=0.9, step=0.02),
+        tdwi=widgets.FloatSlider(value=20.0, min=5, max=50),
+        tsum1=widgets.FloatSlider(value=750.0, min=100, max=1500),
+        tsum2=widgets.FloatSlider(value=859.0, min=100, max=1500),
+        tsumem=widgets.FloatSlider(value=70, min=10, max=200),
+        rgrlai=widgets.FloatSlider(value=0.05, min=0.001, max=0.3, step=0.01),
+        
+        crop=widgets.fixed(crop),
+        variety=widgets.fixed(crop_variety),
+        soil=widgets.fixed(soil),
+        wdp=widgets.fixed(meteo_data),
+        
+        wav=widgets.FloatSlider(value=5, min=0, max=100),
+        co2=widgets.fixed(400),
+        rdmsol=widgets.fixed(100.0),
+        potential=widgets.Checkbox(
+            value=False, description="Potential mode"
         ),
     )

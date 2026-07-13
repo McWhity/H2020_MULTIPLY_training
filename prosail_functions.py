@@ -802,6 +802,8 @@ def optimise_random_starts(
         axs[0].set_title("Reflectance")
         axs[1].set_title("Transmittance")
         axs[1].set_xlabel("Wavelength [nm]")
+        axs[0].legend()
+        axs[1].legend()
 
     return fwd_refl, fwd_trans, store[i].x, store[i].fun
 
