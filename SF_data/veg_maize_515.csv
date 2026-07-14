@@ -1,4 +1,4 @@
-None;BBCH median;Chlorophyll mean;Chlorophyll std;Height [cm] mean;Height [cm] std;LAI mean;LAI std;VWC kg/m2;Dry biomass total kg/m2
+date;BBCH median;Chlorophyll mean;Chlorophyll std;Height [cm] mean;Height [cm] std;LAI mean;LAI std;VWC kg/m2;Dry biomass total kg/m2
 2017-06-08;15;38.6867;10.2998;24.3333;1.5275;0.3983;0.05;0.1134;0.0077
 2017-06-13;17;40.9933;4.33;38;3;0.4216;0.0832;0.0824;0.0393
 2017-06-19;32;40.18;3.6925;63.6667;1.1547;0.8276;0.1808;0.7;0.0962
