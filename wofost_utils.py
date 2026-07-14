@@ -53,7 +53,7 @@ AgroManagement:
         crop_start_type: sowing
         crop_end_date: {crop_end_date}
         crop_end_type: harvest
-        max_duration: 150
+        max_duration: {max_duration}
     TimedEvents: null
     StateEvents: null
 """
@@ -338,6 +338,7 @@ def wofost_parameter_sweep_func2(
         [span, tsum1, tsum2, tsumem, tdwi, rgrlai, cvo, cvl],
     ):
         parameters.set_override(p, v, check=True)
+    max_duration = (crop_end_date - crop_start_date).days
     with open("temporal.amgt", "w") as fp:
         fp.write(
             agromanagement_contents.format(
@@ -346,8 +347,10 @@ def wofost_parameter_sweep_func2(
                 variety=variety,
                 crop_start_date=crop_start_date,
                 crop_end_date=crop_end_date,
+                max_duration=max_duration,
             )
         )
+
     agromanagement = YAMLAgroManagementReader("temporal.amgt")
     
     df_results, simulator = run_wofost(
@@ -379,7 +382,8 @@ def wofost_parameter_sweep_func2(
         key += "-LIM.csv"
         
     print(f"Saving run configurations to output: {key}")
-    df_results.to_csv(key, encoding="utf-8", index=False)
+
+    df_results.to_csv(key, encoding="utf-8", index=True)
     plt.show()
 
 
@@ -390,7 +394,7 @@ def wofost_parameter_sweep2(soil, crop, crop_variety, meteo_data):
         wofost_parameter_sweep_func2,
 
         crop_start_date=widgets.DatePicker(value=dt.date(2017, 3, 1), description="Start Date"),
-        crop_end_date=widgets.DatePicker(value=dt.date(2017, 8, 1), description="End Date"),
+        crop_end_date=widgets.DatePicker(value=dt.date(2017, 11, 1), description="End Date"),
         span=widgets.FloatSlider(value=40.0, min=20, max=50),
         cvo=widgets.FloatSlider(value=0.72, min=0.1, max=0.9, step=0.02),
         cvl=widgets.FloatSlider(value=0.72, min=0.1, max=0.9, step=0.02),
