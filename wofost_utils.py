@@ -371,9 +371,7 @@ def wofost_parameter_sweep_func2(
     
     soil_clean = Path(soil).stem
 
-    key = f"crop_{crop}-{variety}_soil_{soil_clean}_dates_{start_str}_to_{end_str}"
-    key += f"-span_{span}-tdwi_{tdwi}-tsum1_{tsum1}-tsum2_{tsum2}-tsumem_{tsumem}"
-    key += f"-rgrlai_{rgrlai}-wav_{wav}-cvo_{cvo}-cvl_{cvl}"
+    key = f"crop_{crop}-{variety}_soil_{soil_clean}"
 
     if potential:
         key += "-POT.csv"
